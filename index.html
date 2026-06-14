@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekomendasi Menu Makanan Harian - KNN</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Desain pembungkus tombol ikon jenis kelamin agar selaras dengan glassmorphism */
+        .btn-check:checked + .gender-box-label {
+            background: rgba(255, 255, 255, 0.18) !important;
+            border-color: #00f260 !important;
+            box-shadow: 0 0 15px rgba(0, 242, 96, 0.4);
+        }
+        .gender-box-label:hover {
+            background: rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="vanta-bg"></div>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold text-gradient">Sistem Rekomendasi Menu Makanan</h2>
+                <p class="text-white-50">Implementasi Algoritma K-Nearest Neighbors & Content-Based Filtering</p>
+            </div>
+            
+            <div class="glass-card p-4 p-md-5">
+                <form action="/process" method="POST">
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label for="berat" class="form-label fw-semibold">Berat Badan (kg)</label>
+                            <input type="number" step="any" class="form-control" id="berat" name="berat" required placeholder="Contoh: 65">
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <label for="tinggi" class="form-label fw-semibold">Tinggi Badan (cm)</label>
+                            <input type="number" step="any" class="form-control" id="tinggi" name="tinggi" required placeholder="Contoh: 170">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label for="usia" class="form-label fw-semibold">Usia (Tahun)</label>
+                            <input type="number" class="form-control" id="usia" name="usia" required placeholder="Contoh: 22">
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label fw-semibold d-block">Jenis Kelamin</label>
+                            <div class="d-flex gap-3">
+                                <input type="radio" class="btn-check" name="gender" id="gender_pria" value="pria" required>
+                                <label class="btn w-50 py-2 d-flex align-items-center justify-content-center gender-box-label" for="gender_pria" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px;" title="Pria">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#0575E6" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M9.5 2a.5.5 0 0 1 0-1h5a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-1 0V2.707L9.854 6.854a.5.5 0 1 1-.708-.708L13.293 2z"/>
+                                        <path fill-rule="evenodd" d="M4 5a4 4 0 1 0 0 8 4 4 0 0 0 0-8M1 9a5 5 0 1 1 10 0A5 5 0 0 1 1 9"/>
+                                    </svg>
+                                </label>
+
+                                <input type="radio" class="btn-check" name="gender" id="gender_wanita" value="wanita" required>
+                                <label class="btn w-50 py-2 d-flex align-items-center justify-content-center gender-box-label" for="gender_wanita" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px;" title="Wanita">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#ff477e" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M8 1a4 4 0 1 0 0 8 4 4 0 0 0 0-8M3 5a5 5 0 1 1 5.5 4.975V12h2a.5.5 0 0 1 0 1h-2v2a.5.5 0 0 1-1 0v-2h-2a.5.5 0 0 1 0-1h2v-2.025A5 5 0 0 1 3 5"/>
+                                    </svg>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="aktivitas" class="form-label fw-semibold">Tingkat Aktivitas Fisik</label>
+                        <select class="form-select" id="aktivitas" name="aktivitas" required>
+                            <option value="" disabled selected style="background: #111;">Pilih tingkat aktivitas harian...</option>
+                            <option value="ringan" style="background: #111;">Ringan (Jarang olahraga / kerja kantoran)</option>
+                            <option value="sedang" style="background: #111;">Sedang (Olahraga 3-5 hari/minggu)</option>
+                            <option value="berat" style="background: #111;">Berat (Olahraga berat 6-7 hari/minggu)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="preferensi" class="form-label fw-semibold">Preferensi Bahan Makanan (Opsional)</label>
+                        <input type="text" class="form-control" id="preferensi" name="preferensi" placeholder="Masukkan bahan dasar, misal: Ayam, Ikan, Daging, Sayur">
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-neon btn-lg text-white">
+                            Hitung & Analisis Gizi
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
+<script>
+    VANTA.NET({
+      el: "#vanta-bg",
+      mouseControls: true,
+      touchControls: true,
+      gyroControls: false,
+      minHeight: 200.00,
+      minWidth: 200.00,
+      scale: 1.00,
+      scaleMobile: 1.00,
+      color: 0x0575e6,
+      backgroundColor: 0x0,
+      points: 11.00,
+      maxDistance: 22.00,
+      spacing: 16.00
+    })
+</script>
+</body>
+</html>
