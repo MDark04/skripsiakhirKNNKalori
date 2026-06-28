@@ -7,22 +7,11 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        /* FIX PENGAMAN LATAR BELAKANG */
-        body { 
-            background-color: #050505 !important; 
-            color: #ffffff !important; 
-        }
-        
+        body { background-color: #050505 !important; color: #ffffff !important; }
         .table { color: #fff !important; }
-        .table th, .table td { 
-            color: #ffffff !important; 
-            border-bottom: 1px solid rgba(255,255,255,0.1) !important; 
-        }
+        .table th, .table td { color: #ffffff !important; border-bottom: 1px solid rgba(255,255,255,0.1) !important; }
         .table th { background: rgba(255,255,255,0.05) !important; }
-        .badge-match { 
-            background: linear-gradient(to right, #00f260, #0575E6); 
-            color: #fff; font-weight: 600; padding: 6px 12px; border-radius: 20px; 
-        }
+        .badge-match { background: linear-gradient(to right, #00f260, #0575E6); color: #fff; font-weight: 600; padding: 6px 12px; border-radius: 20px; }
     </style>
 </head>
 <body style="background-color: #050505;">
@@ -41,6 +30,19 @@
                 <a href="/" class="btn btn-outline-light btn-sm" style="border-radius: 8px;">← Hitung Ulang</a>
             </div>
 
+            <div class="glass-card p-4 mb-4 d-flex align-items-center justify-content-between" style="background: rgba(5, 117, 230, 0.1); border: 1px solid rgba(5, 117, 230, 0.4); border-radius: 20px;">
+                <div>
+                    <div class="text-white-50 small fw-bold text-uppercase mb-1">Diagnosa Indeks Massa Tubuh (BMI)</div>
+                    <h4 class="m-0 text-white">Status Gizi: <strong style="color: #00f260;">{{ status_gizi }}</strong> (Skor: {{ bmi }})</h4>
+                </div>
+                <div class="text-end">
+                    <div class="text-white-50 small fw-bold text-uppercase mb-1">Penyesuaian Kalori Sistem</div>
+                    <span class="badge" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.3); font-size: 0.9rem;">
+                        {{ info_penyesuaian }}
+                    </span>
+                </div>
+            </div>
+
             <div class="row g-3 mb-4">
                 <div class="col-md-4">
                     <div class="glass-card p-4 text-center" style="background: rgba(30,30,30,0.8); border: 1px solid #333; border-radius: 20px;">
@@ -51,7 +53,7 @@
                 <div class="col-md-4">
                     <div class="glass-card p-4 text-center" style="background: rgba(30,30,30,0.8); border: 1px solid rgba(0, 242, 96, 0.3); border-radius: 20px;">
                         <div class="small fw-bold text-uppercase mb-1" style="color: #00f260;">Total Energi Harian (TDEE)</div>
-                        <h2 class="fw-bold m-0" style="color: #00f260;">{{ tdee }} <span class="fs-6 fw-normal text-white-50">kcal</span></h2>
+                        <h2 class="fw-bold m-0" style="color: #00f260;">{{ tdee_adjusted }} <span class="fs-6 fw-normal text-white-50">kcal</span></h2>
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -84,18 +86,15 @@
                     <div class="col-md-6">
                         <p class="mb-1"><strong>Persamaan Rumus Medis (Mifflin-St Jeor):</strong></p>
                         <div class="p-2 rounded font-monospace text-white mb-2" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem;">
-                            {% if gender == 'pria' %}
-                            BMR = (10 × {{ berat }}) + (6.25 × {{ tinggi }}) - (5 × {{ usia }}) + 5 = <strong>{{ bmr }} kcal</strong>
-                            {% else %}
-                            BMR = (10 × {{ berat }}) + (6.25 × {{ tinggi }}) - (5 × {{ usia }}) - 161 = <strong>{{ bmr }} kcal</strong>
-                            {% endif %}
+                            BMR = {{ bmr }} kcal<br>
+                            TDEE (Awal) = {{ bmr }} × {{ multiplier }} = {{ tdee }} kcal
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <p class="mb-1"><strong>Integrasi Konstanta Aktivitas Fisik:</strong></p>
+                        <p class="mb-1"><strong>Filter Status Gizi (BMI Rule-Based):</strong></p>
                         <div class="p-2 rounded font-monospace text-white" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem;">
-                            TDEE = BMR × Indeks (Kategori {{ aktivitas|capitalize }} : {{ multiplier }})<br>
-                            TDEE = {{ bmr }} × {{ multiplier }} = <strong>{{ tdee }} kcal</strong>
+                            Status: {{ status_gizi }}<br>
+                            TDEE (Akhir) = TDEE Awal {{ info_penyesuaian }} = <strong>{{ tdee_adjusted }} kcal</strong>
                         </div>
                     </div>
                 </div>
@@ -103,35 +102,29 @@
 
             <div class="glass-card p-4 mb-4" style="background: rgba(30,30,30,0.8); border: 1px solid #333; border-left: 4px solid #00f260; border-radius: 20px;">
                 <h5 class="fw-bold text-gradient mb-3" style="color: #00f260;">2. Transparansi Perhitungan Target Gizi Makro Porsi</h5>
-                <p class="text-white-50 mb-3" style="font-size: 0.9rem;">
-                    Target kalori porsi tunggal didapatkan dari <strong>1/3 total energi harian (TDEE)</strong>, yang kemudian didistribusikan ke dalam susunan gramasi nutrisi esensial skripsi:
-                </p>
                 <div class="p-3 rounded font-monospace" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #dddddd;">
-                    <div>• Target Kalori 1 Porsi = {{ tdee }} kcal / 3 kali makan = <strong class="text-white">{{ target }} kcal</strong></div>
+                    <div>• Target Kalori 1 Porsi = {{ tdee_adjusted }} kcal / 3 kali makan = <strong class="text-white">{{ target }} kcal</strong></div>
                     <div class="mt-2 text-white-50">• Rumus Distribusi Gram Zat Gizi Makro:</div>
-                    <div class="ms-3 text-info">• Karbohidrat (50% Kalori) : ({{ target }} × 0.50) / 4 kcal = <strong>{{ target_karbo }} g</strong></div>
-                    <div class="ms-3 text-warning">• Protein (20% Kalori) : ({{ target }} × 0.20) / 4 kcal = <strong>{{ target_protein }} g</strong></div>
-                    <div class="ms-3 text-danger">• Lemak (30% Kalori) : ({{ target }} × 0.30) / 9 kcal = <strong>{{ target_lemak }} g</strong></div>
+                    <div class="ms-3 text-info">• Karbohidrat (50%) : ({{ target }} × 0.50) / 4 kcal = <strong>{{ target_karbo }} g</strong></div>
+                    <div class="ms-3 text-warning">• Protein (20%) : ({{ target }} × 0.20) / 4 kcal = <strong>{{ target_protein }} g</strong></div>
+                    <div class="ms-3 text-danger">• Lemak (30%) : ({{ target }} × 0.30) / 9 kcal = <strong>{{ target_lemak }} g</strong></div>
                 </div>
             </div>
 
             <div class="glass-card p-4 mb-4" style="background: rgba(30,30,30,0.8); border: 1px solid #333; border-left: 4px solid #ff823a; border-radius: 20px;">
                 <h5 class="fw-bold text-gradient mb-3" style="color: #ff823a;">3. Transparansi Formulasi Akurasi Kedekatan Gizi (KNN Math)</h5>
                 <p class="text-white-50 mb-3" style="font-size: 0.9rem;">
-                    Persentase kecocokan (*Akurasi Gizi Match*) diturunkan secara terbalik dari matriks jarak kuadrat terkecil *Euclidean Distance* 4-Dimensi. Semakin kecil nilai jarak selisih gizi ($d$), maka nilai akurasi akan semakin mendekati 100%.
+                    Persentase kecocokan (*Akurasi Gizi Match*) diturunkan dari matriks jarak *Euclidean Distance* 4-Dimensi. Semakin kecil nilai jarak, akurasi semakin mendekati 100%.
                 </p>
                 <div class="p-3 rounded font-monospace" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #dddddd;">
-                    <div class="fw-bold text-white mb-2">Langkah 1: Rumus Jarak Euclidean 4 Dimensi Gizi (Kalori, Protein, Karbo, Lemak)</div>
+                    <div class="fw-bold text-white mb-2">Langkah 1: Jarak Euclidean (d)</div>
                     <div class="text-white mb-3">
-                        $d = \sqrt{(Target_{Kal} - Menu_{Kal})^2 + (Target_{Prot} - Menu_{Prot})^2 + (Target_{Karb} - Menu_{Karb})^2 + (Target_{Lem} - Menu_{Lem})^2}$
+                        $d = \sqrt{(Kal_T - Kal_M)^2 + (Prot_T - Prot_M)^2 + (Karb_T - Karb_M)^2 + (Lem_T - Lem_M)^2}$
                     </div>
                     
-                    <div class="fw-bold text-white mb-2">Langkah 2: Transformasi Jarak Menjadi Persentase Skor Akurasi</div>
+                    <div class="fw-bold text-white mb-2">Langkah 2: Konversi Akurasi</div>
                     <div class="text-white mb-2">
                         $Skor = 100 - \left( \frac{d}{Target_{Kalori}} \times 100 \right)$
-                    </div>
-                    <div class="text-white-50" style="font-size: 0.8rem;">
-                        *Sistem menerapkan batas fungsional komputasi (<code class="text-warning">clip(0, 100)</code>) agar batas nilai akurasi terendah mutlak berada di angka 0% dan tertinggi di angka 100%.
                     </div>
                 </div>
             </div>
