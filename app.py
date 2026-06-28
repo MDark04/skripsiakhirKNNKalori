@@ -5,7 +5,7 @@ from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
-# --- FUNGSI 1: MENGHITUNG KEBUTUHAN KALORI (BMR & TDEE) ---
+# --- FUNGSI 1: MENGHITUNG BMR & TDEE ---
 def hitung_bmr_tdee(gender, berat, tinggi, usia, aktivitas):
     if gender == 'pria':
         bmr = (10 * berat) + (6.25 * tinggi) - (5 * usia) + 5
@@ -16,13 +16,38 @@ def hitung_bmr_tdee(gender, berat, tinggi, usia, aktivitas):
     tdee = bmr * faktor.get(aktivitas, 1.2)
     return bmr, tdee
 
-# --- FUNGSI 2: ALGORITMA KNN DENGAN INTEGRASI NOTIFIKASI ERROR ---
+# --- FUNGSI BARU: DIAGNOSA BMI & PENYESUAIAN KALORI MEDIS ---
+def hitung_bmi_dan_penyesuaian(berat, tinggi_cm, tdee):
+    tinggi_m = tinggi_cm / 100
+    bmi = berat / (tinggi_m ** 2)
+    bmi = round(bmi, 1)
+    
+    # Rule-Based Diet Adjustment berdasarkan Jurnal
+    if bmi < 18.5:
+        status_gizi = "Kurus (Gizi Kurang)"
+        tdee_adjusted = tdee + 300  # Target Surplus
+        info_penyesuaian = "+300 kcal (Surplus Kalori)"
+    elif 18.5 <= bmi < 25:
+        status_gizi = "Normal"
+        tdee_adjusted = tdee
+        info_penyesuaian = "Tetap (Pemeliharaan Kalori)"
+    elif 25 <= bmi < 30:
+        status_gizi = "Overweight (Kelebihan Berat)"
+        tdee_adjusted = tdee - 500  # Target Defisit
+        info_penyesuaian = "-500 kcal (Defisit Kalori)"
+    else:
+        status_gizi = "Obesitas"
+        tdee_adjusted = tdee - 500  # Target Defisit
+        info_penyesuaian = "-500 kcal (Defisit Kalori)"
+        
+    return bmi, status_gizi, tdee_adjusted, info_penyesuaian
+
+# --- FUNGSI 2: ALGORITMA KNN ---
 def rekomendasi_knn(target_kalori, preferensi='', k=5):
     try:
         df = pd.read_csv('nutrition.csv', sep=None, engine='python', encoding='utf-8', on_bad_lines='skip')
         df.columns = [str(col).strip().lower() for col in df.columns]
         
-        # Pemetaan otomatis kolom database
         kolom_map = {}
         for col in df.columns:
             if 'name' in col or 'nama' in col: kolom_map['name'] = col
@@ -39,15 +64,13 @@ def rekomendasi_knn(target_kalori, preferensi='', k=5):
         status_preferensi = "ok"
         warning_target = False
         
-        # Poin Ketiga: Validasi Filter Kategori Preferensi Makanan
         if preferensi and 'name' in df.columns:
             df_filter = df[df['name'].str.contains(preferensi, case=False, na=False)]
             if df_filter.empty:
-                status_preferensi = "not_found" # Flag error jika tidak ditemukan makanan yang sesuai
+                status_preferensi = "not_found"
             else:
                 df = df_filter
         
-        # Hitung target makronutrisi ideal untuk porsi tunggal (1/3 TDEE)
         target_protein = (target_kalori * 0.20) / 4
         target_karbo = (target_kalori * 0.50) / 4
         target_lemak = (target_kalori * 0.30) / 9
@@ -63,7 +86,6 @@ def rekomendasi_knn(target_kalori, preferensi='', k=5):
             rekomendasi = df.sort_values(by='distance').head(k).copy()
             rekomendasi['accuracy'] = (100 - (rekomendasi['distance'] / target_kalori * 100)).clip(0, 100).round(1)
             
-            # Poin Keempat: Deteksi jika rekomendasi makanan terbaik berada di bawah 90% target energi
             if not rekomendasi.empty:
                 top_calories = rekomendasi.iloc[0]['calories']
                 if top_calories < (0.9 * target_kalori):
@@ -83,7 +105,6 @@ def index():
 @app.route('/process', methods=['POST'])
 def process():
     try:
-        # Menangkap data input form
         berat = float(request.form['berat'])
         tinggi = float(request.form['tinggi'])
         usia = int(request.form['usia'])
@@ -91,11 +112,14 @@ def process():
         aktivitas = request.form['aktivitas']
         preferensi = request.form.get('preferensi', '').strip()
         
-        # Eksekusi kalkulasi kebutuhan energi dasar
         bmr, tdee = hitung_bmr_tdee(gender, berat, tinggi, usia, aktivitas)
-        target = tdee / 3
         
-        # Hitung angka target gram makronutrisi porsi makan untuk lembar transparansi
+        # Eksekusi Diagnosa BMI (BARU)
+        bmi, status_gizi, tdee_adjusted, info_penyesuaian = hitung_bmi_dan_penyesuaian(berat, tinggi, tdee)
+        
+        # Target kini dihitung dari TDEE yang sudah disesuaikan (Surplus/Defisit)
+        target = tdee_adjusted / 3
+        
         target_protein = round((target * 0.20) / 4, 1)
         target_karbo = round((target * 0.50) / 4, 1)
         target_lemak = round((target * 0.30) / 9, 1)
@@ -106,6 +130,7 @@ def process():
         
         return render_template('result.html', 
                                bmr=int(bmr), tdee=int(tdee), target=int(target),
+                               bmi=bmi, status_gizi=status_gizi, tdee_adjusted=int(tdee_adjusted), info_penyesuaian=info_penyesuaian,
                                berat=berat, tinggi=tinggi, usia=usia, gender=gender,
                                aktivitas=aktivitas, multiplier=faktor_aktivitas,
                                target_protein=target_protein, target_karbo=target_karbo,
